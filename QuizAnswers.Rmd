@@ -1,0 +1,13 @@
+---
+title: "Quiz Predictions"
+author: B Fallis
+date: 03/12/2019
+output: github_document
+---
+
+We use the previous built ML model to predict what the test data should be
+```{r}
+random_forest_predict <- predict(random_forest_model, test)
+random_forest_predict
+```
+
