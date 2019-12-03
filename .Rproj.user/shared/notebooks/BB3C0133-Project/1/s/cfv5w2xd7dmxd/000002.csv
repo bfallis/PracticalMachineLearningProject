@@ -1,0 +1,3 @@
+"0","correlation_matrix <- cor(model_train[, -53])"
+"0",""
+"0","corrplot(correlation_matrix, order = ""FPC"", method = ""color"", type = ""lower"", tl.cex = 0.8, tl.col = rgb(0, 0, 0))"

@@ -1,0 +1,4 @@
+"0","set.seed(1234)"
+"0",""
+"0","decision_tree_model <- rpart(classe ~ ., data = model_train, method=""class"")"
+"0","fancyRpartPlot(decision_tree_model)"

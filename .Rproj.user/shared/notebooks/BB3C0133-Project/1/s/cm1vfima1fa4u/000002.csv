@@ -1,0 +1,5 @@
+"0","set.seed(1234)"
+"0",""
+"0","forest_model_control <- trainControl(method = ""cv"", number = 3, verboseIter = FALSE)"
+"0",""
+"0","random_forest_model <- train(classe ~ ., data = model_train, method=""rf"", trControl = forest_model_control)"

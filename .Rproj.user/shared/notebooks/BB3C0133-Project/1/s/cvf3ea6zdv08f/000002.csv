@@ -1,0 +1,5 @@
+"0","set.seed(1234)"
+"0",""
+"0","data_split  <- createDataPartition(y = train$classe, p = 0.8, list = FALSE)"
+"0","model_train <- train[data_split, ]"
+"0","model_test  <- train[-data_split, ]"

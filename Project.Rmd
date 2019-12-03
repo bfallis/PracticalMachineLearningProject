@@ -1,0 +1,152 @@
+---
+title: "Practical Machine Learning Course Project"
+output:
+  html_document:
+    df_print: paged
+---
+
+## Overview
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. 
+In this project, the goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants to create a machine learning model that can predict the manner of activity performed.
+
+## Datasets
+
+The training data for this project are available here:
+
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+
+The test data are available here:
+
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+
+The data for this project come from http://groupware.les.inf.puc-rio.br/har which details the activities carried out as: 
+
+“Six young health participants were asked to perform one set of 10 repetitions of the Unilateral Dumbbell Biceps Curl in five different fashions: exactly according to the specification (Class A), throwing the elbows to the front (Class B), lifting the dumbbell only halfway (Class C), lowering the dumbbell only halfway (Class D) and throwing the hips to the front (Class E).
+
+Class A corresponds to the specified execution of the exercise, while the other 4 classes correspond to common mistakes. Participants were supervised by an experienced weight lifter to make sure the execution complied to the manner they were supposed to simulate. The exercises were performed by six male participants aged between 20-28 years, with little weight lifting experience. We made sure that all participants could easily simulate the mistakes in a safe and controlled manner by using a relatively light dumbbell (1.25kg)."
+
+## Data Loading and Cleaning
+
+Load libraries
+```{r}
+library(caret)
+library(tidyverse)
+library(corrplot)
+library(rpart)
+library(rpart.plot)
+library(rattle)
+library(randomForest)
+```
+
+Download data and read into R
+```{r}
+# Set URL and local file paths
+URLTrain <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+URLTest  <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+
+DestTrain <- "pml-training.csv"
+DestTest <- "pml-testing.csv"
+
+#If files don't exist, download them, then read them in.
+if(!file.exists(DestTrain)){
+        download.file(URLTrain, DestTrain)
+}
+if(!file.exists(DestTest)){
+        download.file(URLTest, DestTest)
+}
+
+train <- read_csv(DestTrain)
+test <- read_csv(DestTest)
+```
+
+The first 7 columns appear to be related to the individual conducting the activity and so will be removed from both the training and test datasets as they provide no relevant data for the model.
+```{r}
+train <- train %>%
+        select(-c("X1", "user_name", "raw_timestamp_part_1", "raw_timestamp_part_2", "cvtd_timestamp", "new_window", "num_window"))
+
+test <- test %>%
+        select(-c("X1", "user_name", "raw_timestamp_part_1", "raw_timestamp_part_2", "cvtd_timestamp", "new_window", "num_window"))
+```
+
+Remove columns where there is only 1 value or where the variance between values is very small. 
+```{r}
+nearzerovariance <- nearZeroVar(train)
+
+train <- train[, -nearzerovariance]
+test  <- test[, -nearzerovariance]
+
+dim(train)
+dim(test)
+```
+
+Remove columns where more than 95% of the value are NA. These columns will not play a role in the model since there are so many missing values.
+```{r}
+naColumns <- sapply(train, function(x) mean(is.na(x))) > 0.95
+train <- train[, naColumns == FALSE]
+test  <- test[, naColumns == FALSE]
+```
+
+Split the training data into an 80/20% split so we can build the model and test it.
+```{r}
+set.seed(1234)
+
+data_split  <- createDataPartition(y = train$classe, p = 0.8, list = FALSE)
+model_train <- train[data_split, ]
+model_test  <- train[-data_split, ]
+```
+
+Use Correlation matrix to find the most highly correlated variables.
+```{r}
+correlation_matrix <- cor(model_train[, -53])
+
+corrplot(correlation_matrix, order = "FPC", method = "color", type = "lower", tl.cex = 0.8, tl.col = rgb(0, 0, 0))
+```
+
+
+```{r}
+high_correlation = findCorrelation(correlation_matrix, cutoff = 0.8)
+
+names(model_train)[high_correlation]
+```
+
+## Model Creation and Testing
+
+We will analyse 2 different machine learning models to determine which is the better option, decision tree and random forest.
+
+#### Decision Tree
+
+Create a decision tree model (with plot visualisation)
+```{r}
+set.seed(1234)
+
+decision_tree_model <- rpart(classe ~ ., data = model_train, method="class")
+fancyRpartPlot(decision_tree_model)
+```
+
+Test the model on the test data and use a confusion matrix to work out the accuracy of the model.
+```{r}
+decision_tree_predict <- predict(decision_tree_model, model_test, type = "class")
+
+confusionMatrix(decision_tree_predict, as.factor(model_test$classe))
+```
+
+#### Random Forest
+
+Create a random forest model
+```{r}
+set.seed(1234)
+
+forest_model_control <- trainControl(method = "cv", number = 3, verboseIter = FALSE)
+
+random_forest_model <- train(classe ~ ., data = model_train, method="rf", trControl = forest_model_control)
+```
+
+Test the model on the test data and use a confusion matrix to work out the accuracy of the model.
+```{r}
+random_forest_predict <- predict(random_forest_model, model_test)
+
+confusionMatrix(random_forest_predict, as.factor(model_test$classe))
+```
+
+The random forest model is 99.59% accurate in predictions compared to 75.17% for the decision tree and as such will be used for the quiz that follows submission.
